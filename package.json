@@ -15,5 +15,11 @@
   "bugs": {
     "url": "https://github.com/Tinder/sharded-redis-client/issues"
   },
-  "homepage": "https://github.com/Tinder/sharded-redis-client"
+  "homepage": "https://github.com/Tinder/sharded-redis-client",
+  "dependencies": {
+    "async": "^0.9.0",
+    "hiredis": "^0.1.17",
+    "redis": "^0.12.1",
+    "underscore": "^1.7.0"
+  }
 }
