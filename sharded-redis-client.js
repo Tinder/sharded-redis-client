@@ -1,6 +1,5 @@
 var redis = require('redis');
 var crypto = require('crypto');
-var _ = require('underscore');
 var assert = require('assert');
 var EventEmitter = require('events').EventEmitter;
 var async = require('async');
@@ -99,7 +98,7 @@ WrappedClient.prototype.__proto__ = EventEmitter.prototype;
 
 function ShardedRedisClient( configurationArray ){
 
-  assert( _.isArray( configurationArray ) , 'first argument \'configurationArray\' must be an array.' );
+  assert( Array.isArray( configurationArray ) , 'first argument \'configurationArray\' must be an array.' );
 
   var self = this;
   var hostRanges = configurationArray.map(function(hostRangeConfig){
@@ -163,7 +162,7 @@ shardable.forEach(function(cmd){
   ShardedRedisClient.prototype[cmd] = function ( /* arguments */ ) {
     var self = this;
     var args = arguments;
-    var key = _.isArray(arguments[0]) ? arguments[0][0] : arguments[0];
+    var key = Array.isArray(arguments[0]) ? arguments[0][0] : arguments[0];
 
     var client = this._findMatchedClient(key, cmd);
 
