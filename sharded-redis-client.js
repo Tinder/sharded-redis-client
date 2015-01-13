@@ -55,6 +55,7 @@ var shardable = [
   'smembers',
   'hdel',
   'hget',
+  'hincrby',
   'hset',
   'hmset',
   'hgetall',
