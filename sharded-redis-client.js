@@ -96,7 +96,9 @@ ShardedRedisClient.prototype.__proto__ = EventEmitter.prototype;
 
 WrappedClient.prototype.__proto__ = EventEmitter.prototype;
 
-function ShardedRedisClient( configurationArray ){
+function ShardedRedisClient( configurationArray, use_ping ){
+
+  if (use_ping !== false) use_ping = true;
 
   assert( Array.isArray( configurationArray ) , 'first argument \'configurationArray\' must be an array.' );
 
@@ -106,9 +108,10 @@ function ShardedRedisClient( configurationArray ){
   });
   var shardSet = new ShardSet(hostRanges);
   var wrappedClients = shardSet.toArray().map(function(conf){
-    return new WrappedClient(conf);
+    return new WrappedClient(conf, use_ping);
   });
 
+  Object.defineProperty(self, "_usePing", { value: use_ping });
   Object.defineProperty(self, "_readSlave", { value : false });
   Object.defineProperty(self, "_wrappedClients", { value : wrappedClients});
   Object.defineProperty(self, "_ringSize", { value : wrappedClients.length})
@@ -224,13 +227,13 @@ ShardedRedisClient.prototype.keys = function ( pattern , done ) {
 
 };
 
-function WrappedClient (conf) {
+function WrappedClient (conf, use_ping) {
   var self = this ;
 
-  var client = create_client(conf.port, conf.host);
+  var client = create_client(conf.port, conf.host, use_ping);
 
   var slaveClients = conf.slaves.map(function(slaveHost){
-    return create_client(conf.port, slaveHost);
+    return create_client(conf.port, slaveHost, use_ping);
   });
 
   if (!slaveClients.length) {
@@ -243,15 +246,17 @@ function WrappedClient (conf) {
 
 }
 
-function create_client(port, host) {
+function create_client(port, host, use_ping) {
   var client = redis.createClient( port , host );
 
-  setTimeout(function() {
-    setInterval(function() {
-      client.ping(noop);
-    }, 150 * 1000);
-  }, Math.floor(Math.random() * (150 * 1000 + 1)));
-
+  if (use_ping) {
+    setTimeout(function() {
+      setInterval(function() {
+        client.ping(noop);
+      }, 150 * 1000);
+    }, Math.floor(Math.random() * (150 * 1000 + 1)));
+  }
+  
   client.on("error",function(e){
     console.log('Redis Error [' + host + ':' + port + ']: ' + e + ' : ' + (new Date()).toISOString());
   });
