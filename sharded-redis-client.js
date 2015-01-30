@@ -177,6 +177,7 @@ shardable.forEach(function(cmd){
     if(typeof mainCb !== "function") mainCb = args[args.length] = noop;
 
     args[args.length - 1] = function (err) {
+      if (err) console.error(new Date().toISOString(), 'sharded-redis-client [' + client.address + '] err: ' + err);
       if (err && !client._isMaster) {
         client = wrappedClient.slaves.next(client);
         if (client._rrindex == startIndex) {
@@ -244,28 +245,6 @@ function WrappedClient (conf, use_ping) {
   self.slaves = new RoundRobinSet(slaveClients);
   self.readPreference = conf.readPreference;
 
-}
-
-function create_client(port, host, use_ping) {
-  var client = redis.createClient( port , host );
-
-  if (use_ping) {
-    setTimeout(function() {
-      setInterval(function() {
-        client.ping(noop);
-      }, 150 * 1000);
-    }, Math.floor(Math.random() * (150 * 1000 + 1)));
-  }
-  
-  client.on("error",function(e){
-    console.log('Redis Error [' + host + ':' + port + ']: ' + e + ' : ' + (new Date()).toISOString());
-  });
-
-  client.on('end', function(e) {
-    console.log('Redis End [' + host + ':' + port + ']: ' + e + ' : ' + (new Date()).toISOString())
-  });
-
-  return client;
 }
 
 WrappedClient.prototype.get = function () {
@@ -340,6 +319,28 @@ function getNode(key, shards){
   var hashCut = hash.substring(0,4);
   var hashNum = parseInt(hashCut, 16);
   return hashNum%shards;
+}
+
+function create_client(port, host, use_ping) {
+  var client = redis.createClient( port , host );
+
+  if (use_ping) {
+    setTimeout(function() {
+      setInterval(function() {
+        client.ping(noop);
+      }, 150 * 1000);
+    }, Math.floor(Math.random() * (150 * 1000 + 1)));
+  }
+
+  client.on("error",function(e){
+    console.log('Redis Error [' + host + ':' + port + ']: ' + e + ' : ' + (new Date()).toISOString());
+  });
+
+  client.on('end', function(e) {
+    console.log('Redis End [' + host + ':' + port + ']: ' + e + ' : ' + (new Date()).toISOString())
+  });
+
+  return client;
 }
 
 function noop() {}
