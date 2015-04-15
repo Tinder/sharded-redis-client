@@ -52,6 +52,7 @@ var shardable = [
   'exists',
   'scard',
   'smembers',
+  'sunion', // sunion assumes that each key is on the same shard
   'hdel',
   'hget',
   'hincrby',
@@ -84,6 +85,7 @@ var readOnly = [
   'scard',
   'smembers',
   'srandmember',
+  'sunion', // sunion assumes that each key is on the same shard
   'zrevrange',
   'zcard',
   'zcount',
