@@ -129,36 +129,36 @@ ShardedRedisClient.prototype.slaveOk = function () {
 
 ShardedRedisClient.prototype._findMatchedClient = function (key, cmd) {
   key = key.toString();
-  var clientIndex = getNode( key , this._wrappedClients.length );
+  var clientIndex = this._getClientIndex(key);
   var isReadCmd = readOnly.indexOf(cmd) >= 0 ;
-  var client = isReadCmd ? this._getReadClient(clientIndex) : this._getWriteClient(clientIndex);
-  return client;
+  return isReadCmd ? this._getReadClient(clientIndex) : this._getWriteClient(clientIndex);
 };
 
 ShardedRedisClient.prototype._findMasterClient = function (key) {
   key = key.toString();
-  var clientIndex = getNode( key, this._wrappedClients.length);
+  var clientIndex = this._getClientIndex(key);
   var wrappedClient = this._wrappedClients[ clientIndex ];
-  var client = wrappedClient.get() ;
-  return client;
+  return wrappedClient.get();
 };
 
 ShardedRedisClient.prototype._getReadClient = function (clientIndex) {
   var wrappedClient = this._wrappedClients[ clientIndex ];
   var slaveOk = this._readSlave || wrappedClient.readPreference == "slave" ;
-  var client = slaveOk ? wrappedClient.getSlave() : wrappedClient.get() ;
-  return client;
+  return slaveOk ? wrappedClient.getSlave() : wrappedClient.get();
 };
 
 ShardedRedisClient.prototype._getWriteClient = function (clientIndex) {
   var wrappedClient = this._wrappedClients[ clientIndex ];
-  var client = wrappedClient.get() ;
-  return client;
+  return wrappedClient.get();
 };
 
 ShardedRedisClient.prototype._getWrappedClient = function (key) {
-  var clientIndex = getNode(key, this._wrappedClients.length);
+  var clientIndex = this._getClientIndex(key);
   return this._wrappedClients[ clientIndex ];
+};
+
+ShardedRedisClient.prototype._getClientIndex = function (key) {
+  return getNode(key, this._wrappedClients.length);
 };
 
 shardable.forEach(function(cmd){
