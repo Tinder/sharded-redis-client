@@ -223,16 +223,16 @@ ShardedRedisClient.prototype.keys = function ( pattern , done ) {
   var allKeys = {};
   var readClients = self._wrappedClients.map(function(c,i){ return self._getReadClient(i) });
 
-  async.each(readClients,function(rc, cb){
-    rc.keys(pattern,function(err,keys){
+  async.each(readClients, function(rc, cb) {
+    rc.keys(pattern, function(err, keys) {
       if (err) return cb(err);
-      keys.forEach(function(k){ allKeys[k]=true });
+      keys.forEach(function (k) { allKeys[k] = true; });
       cb();
-    },function(err){
-      if (err) return done(err);
-      done(null,Object.keys(allKeys))
-    })
-  })
+    });
+  },function(err){
+    if (err) return done(err);
+    done(null,Object.keys(allKeys))
+  });
 
 };
 
