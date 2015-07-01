@@ -187,7 +187,7 @@ shardable.forEach(function(cmd){
 
     args[args.length - 1] = function (err) {
         if (logger && logger.warn) {
-          logger.warn({err: err}, "redis error on command" + cmd);
+          logger.warn(new Date().toISOString(), 'sharded-redis-client [' + client.address + '] err: ' + err);
         } else {
           console.error(new Date().toISOString(), 'sharded-redis-client [' + client.address + '] err: ' + err);
         }
