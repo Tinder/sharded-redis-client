@@ -45,6 +45,7 @@ module.exports = ShardedRedisClient ;
 var shardable = [
   'sadd',
   'expire',
+  'ttl',
   'sismember',
   'srem',
   'get',
