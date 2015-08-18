@@ -177,7 +177,6 @@ shardable.forEach(function(cmd){
     var key = Array.isArray(arguments[0]) ? arguments[0][0] : arguments[0];
 
     var client = this._findMatchedClient(key, cmd);
-
     var startIndex = client._rrindex;
     var commandFn = client[cmd];
     var wrappedClient = self._getWrappedClient(key);
@@ -192,7 +191,7 @@ shardable.forEach(function(cmd){
         if (client._rrindex == startIndex) {
           client = self._findMasterClient(key);
         }
-        commandFn.apply(client, args);
+        return commandFn.apply(client, args);
       }
       mainCb.apply(this, arguments);
     };
@@ -243,7 +242,10 @@ function WrappedClient (conf, use_ping) {
   var client = create_client(conf.port, conf.host, use_ping);
 
   var slaveClients = conf.slaves.map(function(slaveHost){
-    return create_client(conf.port, slaveHost, use_ping);
+    if(slaveHost.host && slaveHost.port)
+      return create_client(slaveHost.port, slaveHost.host, use_ping);
+    else
+      return create_client(conf.port, slaveHost, use_ping);
   });
 
   if (!slaveClients.length) {
