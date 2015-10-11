@@ -192,9 +192,11 @@ shardable.forEach(function(cmd){
         if (client._rrindex == startIndex) {
           client = self._findMasterClient(key);
         }
-        commandFn.apply(client, args);
+        return commandFn.apply(client, args);
       }
-      mainCb.apply(this, arguments);
+      var argmnts = Array.prototype.slice.call(arguments);
+      if (argmnts.length < 2) argmnts[2] = client;
+      mainCb.apply(this, argmnts);
     };
     commandFn.apply(client, args);
   };
