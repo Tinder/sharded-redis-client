@@ -195,7 +195,7 @@ shardable.forEach(function(cmd){
         return commandFn.apply(client, args);
       }
       var argmnts = Array.prototype.slice.call(arguments);
-      if (argmnts.length < 2) argmnts[2] = client;
+      if (argmnts.length <= 2) argmnts[2] = client;
       mainCb.apply(this, argmnts);
     };
     commandFn.apply(client, args);
