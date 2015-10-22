@@ -194,9 +194,9 @@ shardable.forEach(function(cmd){
         }
         return commandFn.apply(client, args);
       }
-      var argmnts = Array.prototype.slice.call(arguments);
-      if (argmnts.length <= 2) argmnts[2] = client;
-      mainCb.apply(this, argmnts);
+      //var argmnts = Array.prototype.slice.call(arguments);
+      //if (argmnts.length <= 2) argmnts[2] = client;
+      mainCb.apply(this, arguments);
     };
     commandFn.apply(client, args);
   };
