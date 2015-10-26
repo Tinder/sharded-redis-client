@@ -105,7 +105,7 @@ ShardedRedisClient.prototype.__proto__ = EventEmitter.prototype;
 
 WrappedClient.prototype.__proto__ = EventEmitter.prototype;
 
-function ShardedRedisClient( configurationArray, use_ping ){
+function ShardedRedisClient( configurationArray, use_ping, logger ){
 
   if (use_ping !== false) use_ping = true;
 
@@ -124,7 +124,7 @@ function ShardedRedisClient( configurationArray, use_ping ){
   Object.defineProperty(self, "_readSlave", { value : false });
   Object.defineProperty(self, "_wrappedClients", { value : wrappedClients});
   Object.defineProperty(self, "_ringSize", { value : wrappedClients.length})
-
+  Object.defineProperty(self, "_logger", { value : logger });
 }
 
 ShardedRedisClient.prototype.slaveOk = function () {
@@ -181,12 +181,19 @@ shardable.forEach(function(cmd){
     var startIndex = client._rrindex;
     var commandFn = client[cmd];
     var wrappedClient = self._getWrappedClient(key);
+    var logger = self._logger;
 
     var mainCb = args[args.length - 1];
     if(typeof mainCb !== "function") mainCb = args[args.length] = noop;
 
     args[args.length - 1] = function (err) {
-      if (err) console.error(new Date().toISOString(), 'sharded-redis-client [' + client.address + '] err: ' + err);
+        if (logger && logger.warn) {
+          logger.warn(new Date().toISOString(), 'sharded-redis-client [' + client.address + '] err: ' + err);
+        } else {
+          console.error(new Date().toISOString(), 'sharded-redis-client [' + client.address + '] err: ' + err);
+        }
+      }
+
       if (err && !client._isMaster) {
         client = wrappedClient.slaves.next(client);
         if (client._rrindex == startIndex) {
