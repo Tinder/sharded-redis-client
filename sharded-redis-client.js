@@ -65,6 +65,7 @@ var shardable = [
   'lrange',
   'ltrim',
   'set',
+  'setnx',
   'setex',
   'psetex',
   'del',
