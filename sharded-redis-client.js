@@ -171,7 +171,6 @@ ShardedRedisClient.prototype._getClientIndex = function (key) {
 
 shardable.forEach(function(cmd){
 
-  // TODO: check that this works
   ShardedRedisClient.prototype[cmd] = function ( /* arguments */ ) {
     var self = this;
     var args = arguments;
