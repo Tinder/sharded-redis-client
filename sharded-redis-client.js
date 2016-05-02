@@ -4,7 +4,7 @@ var assert = require('assert');
 var EventEmitter = require('events').EventEmitter;
 var async = require('async');
 
-module.exports = ShardedRedisClient ;
+module.exports = ShardedRedisClient;
 
 /**
  * Creates a dummy redis client that consistently shards by key using sha1
@@ -14,7 +14,8 @@ module.exports = ShardedRedisClient ;
  *  new ShardedRedisClient([
  *    { 'host' : 'box1.redis' , port_range : [6370, 6372] },
  *    { 'host' : 'box2.redis' , port_range : [10000] },
- *    { 'host' : 'box3.redis' , port_range : [6379, 6380], slaveHosts:["box3.redis.slave1","box3.redis.slave2"], readPreference: "slave" }, // <- force read slave on this set
+ *    { 'host' : 'box3.redis' , port_range : [6379, 6380],
+ *        slaveHosts:["box3.redis.slave1","box3.redis.slave2"], readPreference: "slave" }, // <- force read slave on this set
  *  ])
  *
  * represents a 6-client sha1 HashRing in the following order:
@@ -106,74 +107,76 @@ ShardedRedisClient.prototype.__proto__ = EventEmitter.prototype;
 
 WrappedClient.prototype.__proto__ = EventEmitter.prototype;
 
-function ShardedRedisClient( configurationArray, use_ping ){
+function ShardedRedisClient(configurationArray, usePing) {
 
-  if (use_ping !== false) use_ping = true;
+  if (usePing !== false) usePing = true;
 
-  assert( Array.isArray( configurationArray ) , 'first argument \'configurationArray\' must be an array.' );
+  assert(Array.isArray(configurationArray), 'first argument \'configurationArray\' must be an array.');
 
-  var self = this;
-  var hostRanges = configurationArray.map(function(hostRangeConfig){
-    return new HostRange( hostRangeConfig.host , hostRangeConfig.port_range[0] , hostRangeConfig.port_range[1], hostRangeConfig.slaveHosts, hostRangeConfig.readPreference )
+  var _this = this;
+  var hostRanges = configurationArray.map(function (hostRangeConfig) {
+    return new HostRange(hostRangeConfig.host, hostRangeConfig.port_range[0], hostRangeConfig.port_range[1],
+      hostRangeConfig.slaveHosts, hostRangeConfig.readPreference);
   });
+
   var shardSet = new ShardSet(hostRanges);
-  var wrappedClients = shardSet.toArray().map(function(conf){
-    return new WrappedClient(conf, use_ping);
+  var wrappedClients = shardSet.toArray().map(function (conf) {
+    return new WrappedClient(conf, usePing);
   });
 
-  Object.defineProperty(self, "_usePing", { value: use_ping });
-  Object.defineProperty(self, "_readSlave", { value : false });
-  Object.defineProperty(self, "_wrappedClients", { value : wrappedClients});
-  Object.defineProperty(self, "_ringSize", { value : wrappedClients.length})
+  Object.defineProperty(_this, '_usePing', { value: usePing });
+  Object.defineProperty(_this, '_readSlave', { value: false });
+  Object.defineProperty(_this, '_wrappedClients', { value: wrappedClients });
+  Object.defineProperty(_this, '_ringSize', { value: wrappedClients.length });
 
 }
 
 ShardedRedisClient.prototype.slaveOk = function () {
-  var self = this ;
-  return Object.create(self,{
-    _readSlave: {value:true}
+  var _this = this;
+  return Object.create(_this, {
+    _readSlave: { value:true }
   });
 };
 
 ShardedRedisClient.prototype._findMatchedClient = function (key, cmd) {
   key = key.toString();
   var clientIndex = this._getClientIndex(key);
-  var isReadCmd = readOnly.indexOf(cmd) >= 0 ;
+  var isReadCmd = readOnly.indexOf(cmd) >= 0;
   return isReadCmd ? this._getReadClient(clientIndex) : this._getWriteClient(clientIndex);
 };
 
 ShardedRedisClient.prototype._findMasterClient = function (key) {
   key = key.toString();
   var clientIndex = this._getClientIndex(key);
-  var wrappedClient = this._wrappedClients[ clientIndex ];
+  var wrappedClient = this._wrappedClients[clientIndex];
   return wrappedClient.get();
 };
 
 ShardedRedisClient.prototype._getReadClient = function (clientIndex) {
-  var wrappedClient = this._wrappedClients[ clientIndex ];
-  var slaveOk = this._readSlave || wrappedClient.readPreference == "slave" ;
+  var wrappedClient = this._wrappedClients[clientIndex];
+  var slaveOk = this._readSlave || wrappedClient.readPreference == 'slave';
   return slaveOk ? wrappedClient.getSlave() : wrappedClient.get();
 };
 
 ShardedRedisClient.prototype._getWriteClient = function (clientIndex) {
-  var wrappedClient = this._wrappedClients[ clientIndex ];
+  var wrappedClient = this._wrappedClients[clientIndex];
   return wrappedClient.get();
 };
 
 ShardedRedisClient.prototype._getWrappedClient = function (key) {
   var clientIndex = this._getClientIndex(key);
-  return this._wrappedClients[ clientIndex ];
+  return this._wrappedClients[clientIndex];
 };
 
 ShardedRedisClient.prototype._getClientIndex = function (key) {
   return getNode(key, this._wrappedClients.length);
 };
 
-shardable.forEach(function(cmd){
+shardable.forEach(function (cmd) {
 
   // TODO: check that this works
-  ShardedRedisClient.prototype[cmd] = function ( /* arguments */ ) {
-    var self = this;
+  ShardedRedisClient.prototype[cmd] = function (/* arguments */) {
+    var _this = this;
     var args = arguments;
     var key = Array.isArray(arguments[0]) ? arguments[0][0] : arguments[0];
 
@@ -181,24 +184,27 @@ shardable.forEach(function(cmd){
 
     var startIndex = client._rrindex;
     var commandFn = client[cmd];
-    var wrappedClient = self._getWrappedClient(key);
+    var wrappedClient = _this._getWrappedClient(key);
 
     var mainCb = args[args.length - 1];
-    if(typeof mainCb !== "function") mainCb = args[args.length] = noop;
+    if (typeof mainCb !== 'function') mainCb = args[args.length] = noop;
 
     args[args.length - 1] = function (err) {
       if (err) console.error(new Date().toISOString(), 'sharded-redis-client [' + client.address + '] err: ' + err);
       if (err && !client._isMaster) {
         client = wrappedClient.slaves.next(client);
         if (client._rrindex == startIndex) {
-          client = self._findMasterClient(key);
+          client = _this._findMasterClient(key);
         }
+
         return commandFn.apply(client, args);
       }
+
       //var argmnts = Array.prototype.slice.call(arguments);
       //if (argmnts.length <= 2) argmnts[2] = client;
       mainCb.apply(this, arguments);
     };
+
     commandFn.apply(client, args);
   };
 
@@ -206,56 +212,59 @@ shardable.forEach(function(cmd){
 
 /* Intentionally opinionated implementations of a few methods: */
 
-ShardedRedisClient.prototype.multi = function ( key , multiArr ) {
-  var client = this._findMatchedClient(key,'multi');
+ShardedRedisClient.prototype.multi = function (key, multiArr) {
+  var client = this._findMatchedClient(key, 'multi');
   return client.multi(multiArr);
 };
 
-ShardedRedisClient.prototype.zaddMulti = function ( key , arr, cb ) {
-  var client = this._findMatchedClient(key,'zadd');
+ShardedRedisClient.prototype.zaddMulti = function (key, arr, cb) {
+  var client = this._findMatchedClient(key, 'zadd');
   return client.zadd([key].concat(arr), cb);
 };
 
-ShardedRedisClient.prototype.zremMulti = function ( key , arr, cb ) {
-  var client = this._findMatchedClient(key,'zrem');
+ShardedRedisClient.prototype.zremMulti = function (key, arr, cb) {
+  var client = this._findMatchedClient(key, 'zrem');
   return client.zrem([key].concat(arr), cb);
 };
 
 // TODO: fix this to new logic
-ShardedRedisClient.prototype.keys = function ( pattern , done ) {
-  var self = this ;
+ShardedRedisClient.prototype.keys = function (pattern, done) {
+  var _this = this;
   var allKeys = {};
-  var readClients = self._wrappedClients.map(function(c,i){ return self._getReadClient(i) });
+  var readClients = _this._wrappedClients.map(function (c, i) { return _this._getReadClient(i); });
 
-  async.each(readClients, function(rc, cb) {
-    rc.keys(pattern, function(err, keys) {
+  async.each(readClients, function (rc, cb) {
+    rc.keys(pattern, function (err, keys) {
       if (err) return cb(err);
       keys.forEach(function (k) { allKeys[k] = true; });
+
       cb();
     });
-  },function(err){
+  }, function (err) {
+
     if (err) return done(err);
-    done(null,Object.keys(allKeys))
+    done(null, Object.keys(allKeys));
   });
 
 };
 
-function WrappedClient (conf, use_ping) {
-  var self = this ;
+function WrappedClient(conf, usePing) {
+  var _this = this;
 
-  var client = create_client(conf.port, conf.host, use_ping);
+  var client = createClient(conf.port, conf.host, usePing);
 
-  var slaveClients = conf.slaves.map(function(slaveHost){
-    return create_client(conf.port, slaveHost, use_ping);
+  var slaveClients = conf.slaves.map(function (slaveHost) {
+    return createClient(conf.port, slaveHost, usePing);
   });
 
   if (!slaveClients.length) {
     slaveClients.push(client);
   }
+
   client._isMaster = true;
-  self.client = client;
-  self.slaves = new RoundRobinSet(slaveClients);
-  self.readPreference = conf.readPreference;
+  _this.client = client;
+  _this.slaves = new RoundRobinSet(slaveClients);
+  _this.readPreference = conf.readPreference;
 
 }
 
@@ -264,92 +273,93 @@ WrappedClient.prototype.get = function () {
 };
 
 WrappedClient.prototype.getSlave = function () {
-  return this.slaves.obtain()
+  return this.slaves.obtain();
 };
 
-function HostRange ( host , startPort , endPort, slaveHosts, readPreference ) {
+function HostRange(host, startPort, endPort, slaveHosts, readPreference) {
 
-  var self = this ;
-  self.host = host ;
-  self.startPort = startPort ;
-  self.endPort = endPort || startPort ;
-  self.slaveHosts = slaveHosts || [] ;
-  self.readPreference = readPreference ;
+  var _this = this;
+  _this.host = host;
+  _this.startPort = startPort;
+  _this.endPort = endPort || startPort;
+  _this.slaveHosts = slaveHosts || [];
+  _this.readPreference = readPreference;
 }
 
 HostRange.prototype.toArray = function () {
 
-  var self = this ;
-  var set = [] ;
+  var _this = this;
+  var set = [];
 
-  for ( var i = self.startPort ; i <= self.endPort ; i++  ) {
-    set.push({ host : self.host , port : i , slaves: self.slaveHosts , readPreference: self.readPreference  })
+  for (var i = _this.startPort; i <= _this.endPort; i++) {
+    set.push({ host: _this.host, port: i, slaves: _this.slaveHosts, readPreference: _this.readPreference });
   }
 
   return set;
 
 };
 
-function ShardSet ( hostRanges ) {
+function ShardSet(hostRanges) {
 
-  var self = this ;
-  self.hostRanges = hostRanges ;
+  var _this = this;
+  _this.hostRanges = hostRanges;
 
 }
 
 ShardSet.prototype.toArray = function () {
 
-  var self = this ;
+  var _this = this;
 
-  return self.hostRanges.reduce(function(memo,hostRange){
+  return _this.hostRanges.reduce(function (memo, hostRange) {
     return memo.concat(hostRange.toArray());
-  },[]);
+  }, []);
 
 };
 
-function RoundRobinSet ( arr ) {
+function RoundRobinSet(arr) {
   this._current = 0;
   var newArr = arr.slice(0);
   for (var i = 0, l = newArr.length; i < l; i++) {
     newArr[i]._rrindex = i;
   }
-  Object.defineProperty(this,"items",{ value: newArr });
+
+  Object.defineProperty(this, 'items', { value: newArr });
 }
 
-RoundRobinSet.prototype.obtain = function (){
+RoundRobinSet.prototype.obtain = function () {
   var item = this.items[this._current];
   this._current = (this._current + 1) % this.items.length;
   return item;
 };
 
-RoundRobinSet.prototype.next = function (item){
+RoundRobinSet.prototype.next = function (item) {
   return this.items[(item._rrindex + 1) % this.items.length];
 };
 
-function getNode(key, shards){
-  var hash = crypto.createHash('sha1').update(String(key)).digest("hex");
-  var hashCut = hash.substring(0,4);
+function getNode(key, shards) {
+  var hash = crypto.createHash('sha1').update(String(key)).digest('hex');
+  var hashCut = hash.substring(0, 4);
   var hashNum = parseInt(hashCut, 16);
-  return hashNum%shards;
+  return hashNum % shards;
 }
 
-function create_client(port, host, use_ping) {
-  var client = redis.createClient( port , host );
+function createClient(port, host, usePing) {
+  var client = redis.createClient(port, host);
 
-  if (use_ping) {
-    setTimeout(function() {
-      setInterval(function() {
+  if (usePing) {
+    setTimeout(function () {
+      setInterval(function () {
         client.ping(noop);
       }, 150 * 1000);
     }, Math.floor(Math.random() * (150 * 1000 + 1)));
   }
 
-  client.on("error",function(e){
+  client.on('error', function (e) {
     console.log('Redis Error [' + host + ':' + port + ']: ' + e + ' : ' + (new Date()).toISOString());
   });
 
-  client.on('end', function(e) {
-    console.log('Redis End [' + host + ':' + port + ']: ' + e + ' : ' + (new Date()).toISOString())
+  client.on('end', function (e) {
+    console.log('Redis End [' + host + ':' + port + ']: ' + e + ' : ' + (new Date()).toISOString());
   });
 
   return client;
