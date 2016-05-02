@@ -107,9 +107,13 @@ ShardedRedisClient.prototype.__proto__ = EventEmitter.prototype;
 
 WrappedClient.prototype.__proto__ = EventEmitter.prototype;
 
-function ShardedRedisClient(configurationArray, usePing) {
+function ShardedRedisClient(configurationArray, options) {
 
-  if (usePing !== false) usePing = true;
+  // Put this here for (temporary) backwards compatibility
+  if (typeof options === 'boolean')
+    options = { usePing: options };
+
+  if (options.usePing !== false) options.usePing = true;
 
   assert(Array.isArray(configurationArray), 'first argument \'configurationArray\' must be an array.');
 
@@ -121,10 +125,10 @@ function ShardedRedisClient(configurationArray, usePing) {
 
   var shardSet = new ShardSet(hostRanges);
   var wrappedClients = shardSet.toArray().map(function (conf) {
-    return new WrappedClient(conf, usePing);
+    return new WrappedClient(conf, options.usePing);
   });
 
-  Object.defineProperty(_this, '_usePing', { value: usePing });
+  Object.defineProperty(_this, '_usePing', { value: options.usePing });
   Object.defineProperty(_this, '_readSlave', { value: false });
   Object.defineProperty(_this, '_wrappedClients', { value: wrappedClients });
   Object.defineProperty(_this, '_ringSize', { value: wrappedClients.length });
