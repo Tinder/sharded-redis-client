@@ -20,6 +20,6 @@
     "async": "^1.5.2",
     "circuit-breaker": "git://github.com/Tinder/circuit-breaker",
     "hiredis": "^0.4.1",
-    "redis": "^2.4.2"
+    "redis": "2.4.2"
   }
 }
