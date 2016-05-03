@@ -12,8 +12,10 @@ module.exports = ShardedRedisClient;
  * @param {configurationArray} array - list of "HostRange" configuration objects
  * @param {options} Object - Object of optional configuration info. Available options:
  *                           - usePing: a Boolean describing whether or not to try pinging the redis client every so often.
- *                           - readTimeout: Number - amount of time to wait for redis before calling back without out the response on a read commmand.
- *                           - writeTimeout: Number - amount of time to wait for redis before calling back without out the response on a write commmand.
+ *                           - readTimeout: Number - amount of time to wait for redis before calling back without out the response on a read command.
+ *                                                   A value of 0 will be treated as having readTimeouts turned off. Defaults to 0.
+ *                           - writeTimeout: Number - amount of time to wait for redis before calling back without out the response on a write command.
+ *                                                    A value of 0 will be treated as having writeTimeouts turned off. Defaults to 0
  *                           - breakerConfig: an Object with configuration values for circuit breakers
  *                           - redisOptions: an Object to pass as options to the redis client
  *
