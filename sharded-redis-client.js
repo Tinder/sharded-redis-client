@@ -143,7 +143,7 @@ function ShardedRedisClient(configurationArray, options) {
   Object.defineProperty(_this, '_ringSize', { value: wrappedClients.length });
   Object.defineProperty(_this, '_readTimeout', { value: options.readTimeout });
   Object.defineProperty(_this, '_writeTimeout', { value: options.writeTimeout });
-  Object.defineProperty(_this, '_useCircuitBreaker', { value: options.useCircuitBreaker });
+  Object.defineProperty(_this, '_CircuitBreaker', { value: options.breakerConfig });
 
   //Object.defineProperty(_this, '_redisOptions', { value: options.redisOptions || {} });
 }
@@ -162,10 +162,17 @@ ShardedRedisClient.prototype.setReadTimeOut = function (timeoutVal) {
   });
 };
 
+ShardedRedisClient.prototype.setWriteTimeOut = function (timeoutVal) {
+  var _this = this;
+  return Object.create(_this, {
+    _writeTimeout: { value: timeoutVal }
+  });
+};
+
 ShardedRedisClient.prototype.useCircuitBreaker = function (config) {
   var _this = this;
   return Object.create(_this, {
-    _useCircuitBreaker: true
+    _CircuitBreakerConfig: config
   });
 };
 
