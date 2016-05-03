@@ -3,12 +3,19 @@ var crypto = require('crypto');
 var assert = require('assert');
 var EventEmitter = require('events').EventEmitter;
 var async = require('async');
+var CircuitBreaker = require('circuit-breaker');
 
 module.exports = ShardedRedisClient;
 
 /**
  * Creates a dummy redis client that consistently shards by key using sha1
  * @param {configurationArray} array - list of "HostRange" configuration objects
+ * @param {options} Object - Object of optional configuration info. Available options:
+ *                           - usePing: a Boolean describing whether or not to try pinging the redis client every so often.
+ *                           - readTimeout: Number - amount of time to wait for redis before calling back without out the response on a read commmand.
+ *                           - writeTimeout: Number - amount of time to wait for redis before calling back without out the response on a write commmand.
+ *                           - breakerConfig: an Object with configuration values for circuit breakers
+ *                           - redisOptions: an Object to pass as options to the redis client
  *
  * ex 1:
  *  new ShardedRedisClient([
@@ -125,20 +132,38 @@ function ShardedRedisClient(configurationArray, options) {
 
   var shardSet = new ShardSet(hostRanges);
   var wrappedClients = shardSet.toArray().map(function (conf) {
-    return new WrappedClient(conf, options.usePing);
+    return new WrappedClient(conf, options);
   });
 
   Object.defineProperty(_this, '_usePing', { value: options.usePing });
   Object.defineProperty(_this, '_readSlave', { value: false });
   Object.defineProperty(_this, '_wrappedClients', { value: wrappedClients });
   Object.defineProperty(_this, '_ringSize', { value: wrappedClients.length });
+  Object.defineProperty(_this, '_readTimeout', { value: options.readTimeout });
+  Object.defineProperty(_this, '_writeTimeout', { value: options.writeTimeout });
+  Object.defineProperty(_this, '_useCircuitBreaker', { value: options.useCircuitBreaker });
 
+  //Object.defineProperty(_this, '_redisOptions', { value: options.redisOptions || {} });
 }
 
 ShardedRedisClient.prototype.slaveOk = function () {
   var _this = this;
   return Object.create(_this, {
-    _readSlave: { value:true }
+    _readSlave: { value: true }
+  });
+};
+
+ShardedRedisClient.prototype.setReadTimeOut = function (timeoutVal) {
+  var _this = this;
+  return Object.create(_this, {
+    _readTimeout: { value: timeoutVal }
+  });
+};
+
+ShardedRedisClient.prototype.useCircuitBreaker = function (config) {
+  var _this = this;
+  return Object.create(_this, {
+    _useCircuitBreaker: true
   });
 };
 
@@ -192,6 +217,10 @@ shardable.forEach(function (cmd) {
 
     var mainCb = args[args.length - 1];
     if (typeof mainCb !== 'function') mainCb = args[args.length] = noop;
+    mainCb = once(mainCb);
+
+    var isReadCmd = readOnly.indexOf(cmd) >= 0;
+    var timeout = isReadCmd ? _this._readTimeout : _this._writeTimeout;
 
     args[args.length - 1] = function (err) {
       if (err) console.error(new Date().toISOString(), 'sharded-redis-client [' + client.address + '] err: ' + err);
@@ -201,7 +230,7 @@ shardable.forEach(function (cmd) {
           client = _this._findMasterClient(key);
         }
 
-        return commandFn.apply(client, args);
+        return wrappedCmd(client, args);
       }
 
       //var argmnts = Array.prototype.slice.call(arguments);
@@ -209,7 +238,13 @@ shardable.forEach(function (cmd) {
       mainCb.apply(this, arguments);
     };
 
-    commandFn.apply(client, args);
+    wrappedCmd(client, args);
+
+    function wrappedCmd(ctx, args) {
+      // Intentionally don't do this if timeout was set to 0
+      if (timeout) setTimeout(mainCb, timeout, new Error('Redis call timed out'));
+      return commandFn.apply(ctx, args);
+    }
   };
 
 });
@@ -223,11 +258,15 @@ ShardedRedisClient.prototype.multi = function (key, multiArr) {
 
 ShardedRedisClient.prototype.zaddMulti = function (key, arr, cb) {
   var client = this._findMatchedClient(key, 'zadd');
+  cb = once(cb);
+  if (this._writeTimeout) setTimeout(mainCb, this._writeTimeout, new Error('Redis call timed out'));
   return client.zadd([key].concat(arr), cb);
 };
 
 ShardedRedisClient.prototype.zremMulti = function (key, arr, cb) {
   var client = this._findMatchedClient(key, 'zrem');
+  cb = once(cb);
+  if (this._writeTimeout) setTimeout(mainCb, this._writeTimeout, new Error('Redis call timed out'));
   return client.zrem([key].concat(arr), cb);
 };
 
@@ -252,13 +291,13 @@ ShardedRedisClient.prototype.keys = function (pattern, done) {
 
 };
 
-function WrappedClient(conf, usePing) {
+function WrappedClient(conf, options) {
   var _this = this;
 
-  var client = createClient(conf.port, conf.host, usePing);
+  var client = createClient(conf.port, conf.host, options.usePing, options.redisOptions);
 
   var slaveClients = conf.slaves.map(function (slaveHost) {
-    return createClient(conf.port, slaveHost, usePing);
+    return createClient(conf.port, slaveHost, options.usePing, options.redisOptions);
   });
 
   if (!slaveClients.length) {
@@ -347,15 +386,33 @@ function getNode(key, shards) {
   return hashNum % shards;
 }
 
-function createClient(port, host, usePing) {
-  var client = redis.createClient(port, host);
+function createClient(port, host, options) {
+  var client = redis.createClient(port, host, options.redisOptions);
 
-  if (usePing) {
+  if (options.usePing) {
     setTimeout(function () {
       setInterval(function () {
         client.ping(noop);
       }, 150 * 1000);
     }, Math.floor(Math.random() * (150 * 1000 + 1)));
+  }
+
+  if (options.breakerConfig) {
+    var breaker = client._breaker = new CircuitBreaker(options.breakerConfig);
+
+    shardable.forEach(function (cmd) {
+      client[cmd] = function () {
+        var args = arguments;
+
+        var mainCb = args[args.length - 1];
+        if (typeof mainCb !== 'function') args[args.length] = noop;
+        args[args.length - 1] = breaker.monitor(args[args.length - 1]);
+
+        if (breaker.closed()) {
+          client[cmd].apply(client, args);
+        }
+      };
+    });
   }
 
   client.on('error', function (e) {
@@ -367,6 +424,15 @@ function createClient(port, host, usePing) {
   });
 
   return client;
+}
+
+function once(func) {
+  var called = false;
+  return function () {
+    if (called) return;
+    called = true;
+    return func.apply(this, arguments);
+  };
 }
 
 function noop() {}
