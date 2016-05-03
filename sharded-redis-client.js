@@ -121,6 +121,8 @@ function ShardedRedisClient(configurationArray, options) {
   // Put this here for (temporary) backwards compatibility
   if (typeof options === 'boolean')
     options = { usePing: options };
+  else if (!options)
+    options = {};
 
   if (options.usePing !== false) options.usePing = true;
 
