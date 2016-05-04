@@ -233,12 +233,13 @@ shardable.forEach(function (cmd) {
     var isReadCmd = readOnly.indexOf(cmd) >= 0;
     var timeout = isReadCmd ? _this._readTimeout : _this._writeTimeout;
 
-    args[args.length - 1] = function (err) {
+    var timeoutCb = args[args.length - 1] = function (err) {
       if (err) console.error(new Date().toISOString(), 'sharded-redis-client [' + client.address + '] err: ' + err);
       if (err && !client._isMaster) {
         client = wrappedClient.slaves.next(client);
         if (client._rrindex == startIndex) {
           client = _this._findMasterClient(key);
+          timeoutCb = mainCb;
         }
 
         return wrappedCmd(client, args);
@@ -253,7 +254,7 @@ shardable.forEach(function (cmd) {
 
     function wrappedCmd(ctx, args) {
       // Intentionally don't do this if timeout was set to 0
-      if (timeout) setTimeout(mainCb, timeout, new Error('Redis call timed out'));
+      if (timeout) setTimeout(timeoutCb, timeout, new Error('Redis call timed out'));
       return commandFn.apply(ctx, args);
     }
   };
