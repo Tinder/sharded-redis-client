@@ -306,10 +306,10 @@ ShardedRedisClient.prototype.keys = function (pattern, done) {
 function WrappedClient(conf, options) {
   var _this = this;
 
-  var client = createClient(conf.port, conf.host, options.usePing, options.redisOptions);
+  var client = createClient(conf.port, conf.host, options);
 
   var slaveClients = conf.slaves.map(function (slaveHost) {
-    return createClient(conf.port, slaveHost, options.usePing, options.redisOptions);
+    return createClient(conf.port, slaveHost, options);
   });
 
   if (!slaveClients.length) {
