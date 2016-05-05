@@ -233,7 +233,9 @@ shardable.forEach(function (cmd) {
     var isReadCmd = readOnly.indexOf(cmd) >= 0;
     var timeout = isReadCmd ? _this._readTimeout : _this._writeTimeout;
 
+    var timeoutHandler;
     var timeoutCb = args[args.length - 1] = function (err) {
+      if (timeoutHandler) clearTimeout(timeoutHandler);
       if (err) console.error(new Date().toISOString(), 'sharded-redis-client [' + client.address + '] err: ' + err);
       if (err && !client._isMaster) {
         client = wrappedClient.slaves.next(client);
@@ -254,7 +256,7 @@ shardable.forEach(function (cmd) {
 
     function wrappedCmd(ctx, args) {
       // Intentionally don't do this if timeout was set to 0
-      if (timeout) setTimeout(timeoutCb, timeout, new Error('Redis call timed out'));
+      if (timeout) timeoutHandler = setTimeout(timeoutCb, timeout, new Error('Redis call timed out'));
       return commandFn.apply(ctx, args);
     }
   };
@@ -271,15 +273,26 @@ ShardedRedisClient.prototype.multi = function (key, multiArr) {
 ShardedRedisClient.prototype.zaddMulti = function (key, arr, cb) {
   var client = this._findMatchedClient(key, 'zadd');
   cb = once(cb);
-  if (this._writeTimeout) setTimeout(mainCb, this._writeTimeout, new Error('Redis call timed out'));
-  return client.zadd([key].concat(arr), cb);
+  var timeout;
+  if (this._writeTimeout) setTimeout(cb, this._writeTimeout, new Error('Redis call timed out'));
+  return client.zadd([key].concat(arr), wrappedCb);
+
+  function wrappedCb(err, results) {
+    clearTimeout(timeout);
+    cb(err, results);
+  }
 };
 
 ShardedRedisClient.prototype.zremMulti = function (key, arr, cb) {
   var client = this._findMatchedClient(key, 'zrem');
-  cb = once(cb);
-  if (this._writeTimeout) setTimeout(mainCb, this._writeTimeout, new Error('Redis call timed out'));
-  return client.zrem([key].concat(arr), cb);
+  var timeout;
+  if (this._writeTimeout) setTimeout(cb, this._writeTimeout, new Error('Redis call timed out'));
+  return client.zrem([key].concat(arr), wrappedCb);
+
+  function wrappedCb(err, results) {
+    clearTimeout(timeout);
+    cb(err, results);
+  }
 };
 
 // TODO: fix this to new logic
