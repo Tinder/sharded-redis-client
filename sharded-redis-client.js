@@ -274,7 +274,7 @@ ShardedRedisClient.prototype.zaddMulti = function (key, arr, cb) {
   var client = this._findMatchedClient(key, 'zadd');
   cb = once(cb);
   var timeout;
-  if (this._writeTimeout) setTimeout(cb, this._writeTimeout, new Error('Redis call timed out'));
+  if (this._writeTimeout) timeout = setTimeout(cb, this._writeTimeout, new Error('Redis call timed out'));
   return client.zadd([key].concat(arr), wrappedCb);
 
   function wrappedCb(err, results) {
@@ -285,8 +285,9 @@ ShardedRedisClient.prototype.zaddMulti = function (key, arr, cb) {
 
 ShardedRedisClient.prototype.zremMulti = function (key, arr, cb) {
   var client = this._findMatchedClient(key, 'zrem');
+  cb = once(cb);
   var timeout;
-  if (this._writeTimeout) setTimeout(cb, this._writeTimeout, new Error('Redis call timed out'));
+  if (this._writeTimeout) timeout = setTimeout(cb, this._writeTimeout, new Error('Redis call timed out'));
   return client.zrem([key].concat(arr), wrappedCb);
 
   function wrappedCb(err, results) {
