@@ -233,17 +233,26 @@ shardable.forEach(function (cmd) {
     var isReadCmd = readOnly.indexOf(cmd) >= 0;
     var timeout = isReadCmd ? _this._readTimeout : _this._writeTimeout;
 
+    var breaker = client._breaker;
     var timeoutHandler;
     var timeoutCb = args[args.length - 1] = function (err) {
       if (timeoutHandler) clearTimeout(timeoutHandler);
-      if (err) console.error(new Date().toISOString(), 'sharded-redis-client [' + client.address + '] err: ' + err);
-      if (err && !client._isMaster) {
+      if (!err) {
+        if (breaker) breaker.pass();
+        mainCb.apply(this, arguments);
+        return;
+      }
+
+      console.error(new Date().toISOString(), 'sharded-redis-client [' + client.address + '] err: ' + err);
+      if (breaker && err.message !== 'breaker open') breaker.fail();
+
+      if (!client._isMaster) {
         client = wrappedClient.slaves.next(client);
         if (client._rrindex == startIndex) {
           client = _this._findMasterClient(key);
-          timeoutCb = mainCb;
         }
 
+        breaker = client._breaker;
         return wrappedCmd(client, args);
       }
 
@@ -255,9 +264,14 @@ shardable.forEach(function (cmd) {
     wrappedCmd(client, args);
 
     function wrappedCmd(ctx, args) {
-      // Intentionally don't do this if timeout was set to 0
-      if (timeout) timeoutHandler = setTimeout(timeoutCb, timeout, new Error('Redis call timed out'));
-      return commandFn.apply(ctx, args);
+      if (!breaker || breaker.closed()) {
+        // Intentionally don't do this if timeout was set to 0
+        if (timeout) timeoutHandler = setTimeout(timeoutCb, timeout, new Error('Redis call timed out'));
+
+        return commandFn.apply(ctx, args);
+      }
+
+      timeoutCb(new Error('breaker open'));
     }
   };
 
@@ -424,21 +438,7 @@ function createClient(port, host, options) {
   }
 
   if (options.breakerConfig) {
-    var breaker = client._breaker = new CircuitBreaker(options.breakerConfig);
-
-    shardable.forEach(function (cmd) {
-      client[cmd] = function () {
-        var args = arguments;
-
-        var mainCb = args[args.length - 1];
-        if (typeof mainCb !== 'function') args[args.length] = noop;
-        args[args.length - 1] = breaker.monitor(args[args.length - 1]);
-
-        if (breaker.closed()) {
-          client[cmd].apply(client, args);
-        }
-      };
-    });
+    client._breaker = new CircuitBreaker(options.breakerConfig);
   }
 
   client.on('error', function (e) {
