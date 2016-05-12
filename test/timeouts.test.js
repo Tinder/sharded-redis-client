@@ -1,6 +1,6 @@
 describe('Test timeouts', function () {
   var async = require('async');
-  var MockRedisClient = require('../mocks/mockRedisClient.js');
+  var MockRedisClient = require('./mockRedisClient.js');
   var proxyquire = require('proxyquire');
 
   // Reset before each test
@@ -12,7 +12,7 @@ describe('Test timeouts', function () {
 
   beforeEach(function () {
     // Get sharded-redis-client with the redis clients stubbed out
-    ShardedRedis = proxyquire('../../sharded-redis-client.js', {
+    ShardedRedis = proxyquire('../sharded-redis-client.js', {
       redis: MockRedisClient
     });
     jasmine.clock().install();

@@ -1,5 +1,7 @@
 describe('Sharded Client tests', function () {
   var async = require('async');
+  var MockRedisClient = require('./mockRedisClient.js');
+  var proxyquire = require('proxyquire');
 
   var shardable = [
     'sadd',
@@ -60,8 +62,6 @@ describe('Sharded Client tests', function () {
     'zrange',
     'zrangebyscore'
   ];
-  var MockRedisClient = require('../mocks/mockRedisClient.js');
-  var proxyquire = require('proxyquire');
 
   // Reset before each test
   var ShardedRedis;
@@ -72,7 +72,7 @@ describe('Sharded Client tests', function () {
 
   beforeEach(function () {
     // Get sharded-redis-client with the redis clients stubbed out
-    ShardedRedis = proxyquire('../../sharded-redis-client.js', {
+    ShardedRedis = proxyquire('../sharded-redis-client.js', {
       redis: MockRedisClient
     });
   });
