@@ -243,6 +243,8 @@ shardable.forEach(function (cmd) {
         return;
       }
 
+      // For now, both emit and log. Eventually, logging will be removed
+      _this.emit('error', new Error('sharded-redis-client [' + client.address + '] err: ' + err));
       console.error(new Date().toISOString(), 'sharded-redis-client [' + client.address + '] err: ' + err);
       if (breaker && err.message !== 'breaker open') breaker.fail();
 
@@ -263,12 +265,12 @@ shardable.forEach(function (cmd) {
 
     wrappedCmd(client, args);
 
-    function wrappedCmd(ctx, args) {
+    function wrappedCmd(client, args) {
       if (!breaker || breaker.closed()) {
         // Intentionally don't do this if timeout was set to 0
         if (timeout) timeoutHandler = setTimeout(timeoutCb, timeout, new Error('Redis call timed out'));
 
-        return commandFn.apply(ctx, args);
+        return client[cmd].apply(client, args);
       }
 
       timeoutCb(new Error('breaker open'));
