@@ -21,5 +21,11 @@
     "circuit-breaker": "git://github.com/Tinder/circuit-breaker",
     "hiredis": "^0.4.1",
     "redis": "2.4.2"
+  },
+  "devDependencies": {
+    "jasmine": "^2.4.1",
+    "jasmine-expect": "^2.0.2",
+    "jasmine-spec-reporter": "^2.4.0",
+    "proxyquire": "^1.7.4"
   }
 }

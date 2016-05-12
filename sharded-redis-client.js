@@ -223,7 +223,6 @@ shardable.forEach(function (cmd) {
     var client = this._findMatchedClient(key, cmd);
 
     var startIndex = client._rrindex;
-    var commandFn = client[cmd];
     var wrappedClient = _this._getWrappedClient(key);
 
     var mainCb = args[args.length - 1];
