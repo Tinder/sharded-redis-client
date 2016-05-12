@@ -14,7 +14,7 @@ var reporter = {
 jasmine.configureDefaultReporter({ print: noop });
 jasmine.addReporter(new SpecReporter(reporter));
 jasmine.loadConfig({
-  spec_dir: '.',
+  spec_dir: './test',
   spec_files: [
     '**/*.test.js'
   ],
