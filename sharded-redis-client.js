@@ -243,7 +243,7 @@ shardable.forEach(function (cmd) {
       }
 
       // For now, both emit and log. Eventually, logging will be removed
-      _this.emit('error', new Error('sharded-redis-client [' + client.address + '] err: ' + err));
+      _this.emit('err', new Error('sharded-redis-client [' + client.address + '] err: ' + err));
       console.error(new Date().toISOString(), 'sharded-redis-client [' + client.address + '] err: ' + err);
       if (breaker && err.message !== 'breaker open') breaker.fail();
 
