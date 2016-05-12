@@ -199,7 +199,6 @@ describe('Sharded Client tests', function () {
     var totalCalls = 0;
     var masterCallNumber;
     var shardedClient = new ShardedRedis(generateRedisHosts(numMasterHosts, numPorts, numSlaveHosts));
-    shardedClient.on('error', noop);
 
     var wrappedClient = shardedClient._getWrappedClient(key);
     var masterClient = wrappedClient.get();
@@ -240,7 +239,6 @@ describe('Sharded Client tests', function () {
     var numPorts = 1;
     var numSlaveHosts = 5;
     var shardedClient = new ShardedRedis(generateRedisHosts(numMasterHosts, numPorts, numSlaveHosts));
-    shardedClient.on('error', noop);
 
     var wrappedClient = shardedClient._getWrappedClient(key);
     var masterClient = wrappedClient.get();

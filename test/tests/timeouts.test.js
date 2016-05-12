@@ -36,10 +36,6 @@ describe('Test timeouts', function () {
     var redisHosts = generateRedisHosts(numMasterHosts);
 
     var shardedClient = new ShardedRedis(redisHosts, options);
-
-    // ignore the fact that we emitted an error
-    shardedClient.on('error', noop);
-
     shardedClient.get(key, function (err) {
       expect(err).toBeTruthy();
       expect(MockRedisClient.prototype.get).toHaveBeenCalledTimes(1);
@@ -62,9 +58,6 @@ describe('Test timeouts', function () {
 
     var shardedClient = new ShardedRedis(redisHosts, options);
 
-    // ignore the fact that we emitted an error
-    shardedClient.on('error', noop);
-
     shardedClient.set(key, value, function (err) {
       expect(err).toBeTruthy();
       expect(MockRedisClient.prototype.set).toHaveBeenCalledTimes(1);
@@ -85,9 +78,6 @@ describe('Test timeouts', function () {
     var redisHosts = generateRedisHosts(numMasterHosts);
 
     var shardedClient = new ShardedRedis(redisHosts, options);
-
-    // ignore the fact that we emitted an error
-    shardedClient.on('error', noop);
 
     var mainCbSpy = jasmine.createSpy('mainCb').and.callFake(function (err) {
       expect(MockRedisClient.prototype.get).toHaveBeenCalledTimes(1);
@@ -122,9 +112,6 @@ describe('Test timeouts', function () {
     spyOn(masterClient, 'get').and.callThrough();
     spyOn(slaveClient1, 'get');
     spyOn(slaveClient2, 'get');
-
-    // ignore the fact that we emitted an error
-    shardedClient.on('error', noop);
 
     shardedClient.get(key, function (err) {
       expect(err).toBeUndefined();

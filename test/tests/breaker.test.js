@@ -66,9 +66,6 @@ describe('Test breakers', function () {
     var mockedClient = shardedClient._getWrappedClient(key).get();
     spyOn(mockedClient._breaker, 'fail').and.callThrough();
 
-    // Ignore that the client emits an error
-    shardedClient.on('error', noop);
-
     shardedClient.get(key, function (err) {
       expect(err).toBeTruthy();
       expect(MockRedisClient.prototype.get).toHaveBeenCalledTimes(1);
@@ -83,15 +80,13 @@ describe('Test breakers', function () {
     var options = {
       // this config ensures a perpetually open breaker
       breakerConfig: {
-        failure_count: -1,
+        failure_count: -1
       }
     };
     var key = 'key';
     var redisHosts = generateRedisHosts(numMasterHosts);
 
     var shardedClient = new ShardedRedis(redisHosts, options);
-    // Ignore that the client emits an error
-    shardedClient.on('error', noop);
 
     var mockedClient = shardedClient._getWrappedClient(key).get();
     mockedClient._breaker.trip();
