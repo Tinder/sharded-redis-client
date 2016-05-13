@@ -4,7 +4,7 @@
   "description": "A client for application side sharding of redis",
   "main": "sharded-redis-client.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "node test/tests.js"
   },
   "repository": {
     "type": "git",
@@ -17,8 +17,15 @@
   },
   "homepage": "https://github.com/Tinder/sharded-redis-client",
   "dependencies": {
-    "async": "^0.9.0",
-    "hiredis": "^0.1.17",
-    "redis": "^0.12.1"
+    "async": "^1.5.2",
+    "circuit-breaker": "git://github.com/Tinder/circuit-breaker",
+    "hiredis": "^0.4.1",
+    "redis": "2.4.2"
+  },
+  "devDependencies": {
+    "jasmine": "^2.4.1",
+    "jasmine-expect": "^2.0.2",
+    "jasmine-spec-reporter": "^2.4.0",
+    "proxyquire": "^1.7.4"
   }
 }
