@@ -215,11 +215,13 @@ ShardedRedisClient.prototype._getClientIndex = function (key) {
 shardable.forEach(function (cmd) {
 
   // TODO: check that this works
+  // TODO: sharding key passed as separate arg
   ShardedRedisClient.prototype[cmd] = function (/* arguments */) {
     var _this = this;
     var args = arguments;
     var key = Array.isArray(arguments[0]) ? arguments[0][0] : arguments[0];
 
+    // TODO: find matching client based on sharding key, if passed
     var client = this._findMatchedClient(key, cmd);
 
     var startIndex = client._rrindex;
