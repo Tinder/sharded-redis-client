@@ -289,7 +289,7 @@ shardable.forEach(function (cmd) {
     // add options as first param for backwards compatibility
     Array.prototype.splice.call(args, 0, 0, {});
     // call new method with options in first param
-    _this[cmd + 'WithOptions'](args);
+    _this[cmd + 'WithOptions'].apply(_this, args);
   };
 
 });
