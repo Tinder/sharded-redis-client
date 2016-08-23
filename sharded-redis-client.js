@@ -230,7 +230,7 @@ shardable.forEach(function (cmd) {
     var client = this._findMatchedClient(shardKey, cmd);
 
     var startIndex = client._rrindex;
-    var wrappedClient = _this._getWrappedClient(key);
+    var wrappedClient = _this._getWrappedClient(shardKey);
 
     var mainCb = args[args.length - 1];
     if (typeof mainCb !== 'function') mainCb = args[args.length] = noop;
@@ -257,7 +257,7 @@ shardable.forEach(function (cmd) {
       if (!client._isMaster) {
         client = wrappedClient.slaves.next(client);
         if (client._rrindex == startIndex) {
-          client = _this._findMasterClient(key);
+          client = _this._findMasterClient(shardKey);
         }
 
         breaker = client._breaker;
