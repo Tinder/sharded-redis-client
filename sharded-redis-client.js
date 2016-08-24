@@ -215,15 +215,22 @@ ShardedRedisClient.prototype._getClientIndex = function (key) {
 shardable.forEach(function (cmd) {
 
   // TODO: check that this works
-  ShardedRedisClient.prototype[cmd] = function (/* arguments */) {
+  // TODO: sharding key passed as separate arg
+  ShardedRedisClient.prototype[cmd + 'WithOptions'] = function (/* arguments */) {
     var _this = this;
+    // remove options from arguments to pass on to redis function
+    var options = Array.prototype.shift.call(arguments);
+
+    // continue with original arguments w/o options
     var args = arguments;
     var key = Array.isArray(arguments[0]) ? arguments[0][0] : arguments[0];
 
-    var client = this._findMatchedClient(key, cmd);
+    // find client based on sharding key, not storage key
+    var shardKey = (options && options['shardKey']) || key;
+    var client = this._findMatchedClient(shardKey, cmd);
 
     var startIndex = client._rrindex;
-    var wrappedClient = _this._getWrappedClient(key);
+    var wrappedClient = _this._getWrappedClient(shardKey);
 
     var mainCb = args[args.length - 1];
     if (typeof mainCb !== 'function') mainCb = args[args.length] = noop;
@@ -250,7 +257,7 @@ shardable.forEach(function (cmd) {
       if (!client._isMaster) {
         client = wrappedClient.slaves.next(client);
         if (client._rrindex == startIndex) {
-          client = _this._findMasterClient(key);
+          client = _this._findMasterClient(shardKey);
         }
 
         breaker = client._breaker;
@@ -274,6 +281,15 @@ shardable.forEach(function (cmd) {
 
       timeoutCb(new Error('breaker open'));
     }
+  }
+
+  ShardedRedisClient.prototype[cmd] = function (/* arguments */) {
+    var _this = this;
+    var args = arguments;
+    // add options as first param for backwards compatibility
+    Array.prototype.unshift.call(args, {});
+    // call new method with options in first param
+    _this[cmd + 'WithOptions'].apply(_this, args);
   };
 
 });

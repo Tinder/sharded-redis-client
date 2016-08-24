@@ -161,6 +161,36 @@ describe('Sharded Client tests', function () {
     });
   });
 
+  it('should go to the same wrapped client if shard key is same as key', function (done) {
+    var numMasterHosts = 3;
+    var numPorts = 5;
+    var callTimes = 5;
+    var redisHosts = [];
+    var key = 'key';
+    var badKey = 'badKey';
+
+    var shardedClient = new ShardedRedis(generateRedisHosts(numMasterHosts, numPorts));
+    var mockedRedisClient = shardedClient._getWrappedClient(key).get();
+    var mockedBadClient = shardedClient._getWrappedClient(badKey).get();
+    spyOn(mockedRedisClient, 'get').and.callThrough();
+    spyOn(mockedBadClient, 'get').and.callThrough();
+
+    async.times(callTimes, function (n, cb) {
+        async.series([
+          (callback) => shardedClient.get(key, callback),
+          (callback) => shardedClient.getWithOptions( {shardKey: key}, badKey, callback)
+        ],
+        function (err, results) {
+          return cb();
+        });
+      },
+
+      function () {
+        expect(mockedRedisClient.get).toHaveBeenCalledTimes(callTimes * 2);
+        done();
+      });
+  });
+
   it('should not always go to the same redis client', function (done) {
     var numMasterHosts = 3;
     var numPorts = 3;
