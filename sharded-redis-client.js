@@ -219,7 +219,7 @@ shardable.forEach(function (cmd) {
   ShardedRedisClient.prototype[cmd + 'WithOptions'] = function (/* arguments */) {
     var _this = this;
     // remove options from arguments to pass on to redis function
-    var options = Array.prototype.splice.call(arguments, 0, 1);
+    var options = Array.prototype.splice.call(arguments, 0, 1)[0];
 
     // continue with original arguments w/o options
     var args = arguments;
