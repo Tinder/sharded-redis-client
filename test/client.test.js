@@ -40,7 +40,8 @@ describe('Sharded Client tests', function () {
     'zscore',
     'zrange',
     'zrangebyscore',
-    'zremrangebyrank'
+    'zremrangebyrank',
+    'zremrangebyscore'
   ];
 
   var readOnly = [
