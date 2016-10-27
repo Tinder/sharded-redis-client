@@ -89,7 +89,8 @@ var shardable = [
   'zscore',
   'zrange',
   'zrangebyscore',
-  'zremrangebyrank'
+  'zremrangebyrank',
+  'zremrangebyscore'
 ];
 
 var readOnly = [

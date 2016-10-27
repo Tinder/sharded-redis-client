@@ -54,6 +54,7 @@ MockRedisClient.prototype = {
   zremmulti: cb(),
   keys: cb(),
   slaveOk: cb(),
+  zremrangebyscore: cb(),
   _ready: function () { this.emit('ready'); }
 };
 
