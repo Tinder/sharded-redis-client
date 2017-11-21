@@ -2,7 +2,7 @@
 
 ## Description
 
-Creates a dummy redis client that consistently shards by key using sha1
+Creates a Redis client that consistently shards by key using sha1
 
 ## Usage
 
