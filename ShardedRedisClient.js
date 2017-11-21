@@ -137,7 +137,7 @@ class ShardedRedisClient extends EventEmitter {
     else if (!options)
       options = {};
 
-    if (options.usePing !== false)
+    if (options.usePing != false)
       options.usePing = true;
 
     const hostRanges = configurationArray.map((hostRangeConfig) =>
