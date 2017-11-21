@@ -16,26 +16,37 @@
 
 'use strict';
 
-const _ = require('lodash');
-const Jasmine = require('jasmine');
-const SpecReporter = require('jasmine-spec-reporter');
+global.generateRedisHosts = (numMasters, numPorts, numSlaves) => {
+  const hosts = [];
+  let counter = 0;
 
-const reporter = {
-  displayStacktrace: 'specs',
-  displayPendingSummary: false
+  for (let m = 0; m < numMasters; ++m) {
+    const masterConfig = generateRedisConfig(numPorts);
+
+    for (let s = 0; s < numSlaves; ++s) {
+      if (!masterConfig.slaveHosts)
+        masterConfig.slaveHosts = [];
+
+      masterConfig.slaveHosts.push(generateRedisConfig().host);
+      masterConfig.readPreference = 'slave';
+    }
+
+    hosts.push(masterConfig);
+  }
+
+  return hosts;
+
+  function generateRedisConfig(numPorts) {
+    const portRange = [6379];
+
+    if (numPorts > 1)
+      portRange.push(6379 + numPorts - 1);
+
+    const config = {
+      host: 'http://hostname' + counter++,
+      port_range: portRange
+    };
+
+    return config;
+  }
 };
-
-const config = {
-  spec_dir: './test',
-  spec_files: ['**/*.test.js'],
-  helpers: ['helpers.js']
-};
-
-const jasmine = new Jasmine();
-
-require('jasmine-expect');
-
-jasmine.configureDefaultReporter({ print: _.noop });
-jasmine.addReporter(new SpecReporter(reporter));
-jasmine.loadConfig(config);
-jasmine.execute();
