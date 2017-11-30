@@ -1,8 +1,11 @@
 {
   "name": "sharded-redis-client",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "A client for application side sharding of redis",
-  "main": "sharded-redis-client.js",
+  "main": "ShardedRedisClient.js",
+  "engines": {
+    "node": ">=4.0.0"
+  },
   "scripts": {
     "test": "node test/tests.js"
   },
@@ -10,17 +13,18 @@
     "type": "git",
     "url": "https://github.com/Tinder/sharded-redis-client.git"
   },
-  "author": "",
+  "author": "Tinder Inc.",
   "license": "ISC",
   "bugs": {
     "url": "https://github.com/Tinder/sharded-redis-client/issues"
   },
   "homepage": "https://github.com/Tinder/sharded-redis-client",
   "dependencies": {
-    "async": "^1.5.2",
+    "async": "2.6.0",
     "circuit-breaker": "git://github.com/Tinder/circuit-breaker",
-    "hiredis": "^0.4.1",
-    "redis": "2.4.2"
+    "hiredis": "0.5.0",
+    "lodash": "4.17.4",
+    "redis": "2.8.0"
   },
   "devDependencies": {
     "jasmine": "^2.4.1",

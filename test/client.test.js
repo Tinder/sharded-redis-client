@@ -1,257 +1,186 @@
-describe('Sharded Client tests', function () {
-  var async = require('async');
-  var MockRedisClient = require('./mockRedisClient.js');
-  var proxyquire = require('proxyquire');
+/**
+ * Copyright © 2013 - 2017 Tinder, Inc.
+ *
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ */
 
-  var shardable = [
-    'sadd',
-    'expire',
-    'ttl',
-    'sismember',
-    'srem',
-    'get',
-    'mget',
-    'exists',
-    'scard',
-    'smembers',
-    'sunion', // sunion assumes that each key is on the same shard
-    'hdel',
-    'hget',
-    'hincrby',
-    'hset',
-    'hmset',
-    'hgetall',
-    'llen',
-    'lpush',
-    'lrange',
-    'ltrim',
-    'set',
-    'setnx',
-    'setex',
-    'psetex',
-    'del',
-    'srandmember',
-    'zrevrange',
-    'incr',
-    'zadd',
-    'zcard',
-    'zcount',
-    'zrem',
-    'zscore',
-    'zrange',
-    'zrangebyscore',
-    'zremrangebyrank',
-    'zremrangebyscore'
-  ];
+'use strict';
 
-  var readOnly = [
-    'sismember',
-    'get',
-    'mget',
-    'exists',
-    'hgetall',
-    'llen',
-    'lrange',
-    'scard',
-    'smembers',
-    'srandmember',
-    'sunion', // sunion assumes that each key is on the same shard
-    'zrevrange',
-    'zcard',
-    'zcount',
-    'zscore',
-    'zrange',
-    'zrangebyscore'
-  ];
+const async = require('async');
+const proxyquire = require('proxyquire');
+const MockRedisClient = require('./MockRedisClient');
+const SHARDABLE = require('../ShardedRedisClient').SHARDABLE;
 
-  // Reset before each test
-  var ShardedRedis;
+describe('Test client', () => {
 
-  /********************************
-   * Setup
-   ********************************/
+  const WrappedClient = proxyquire('../lib/WrappedClient', { redis: MockRedisClient });
+  const ShardedRedis = proxyquire('../ShardedRedisClient', { './lib/WrappedClient': WrappedClient });
 
-  beforeEach(function () {
-    // Get sharded-redis-client with the redis clients stubbed out
-    ShardedRedis = proxyquire('../sharded-redis-client.js', {
-      redis: MockRedisClient
-    });
-  });
+  it('should create a node_redis client when created', () => {
+    const numMasterHosts = 1;
+    const options = { redisOptions: {} };
+    const redisHosts = global.generateRedisHosts(numMasterHosts);
 
-  /********************************
-   * Tests
-   ********************************/
-
-  it('should create a node_redis client when created', function () {
     spyOn(MockRedisClient, 'createClient').and.callThrough();
-    var numMasterHosts = 1;
-    var options = { redisOptions: {} };
-    var redisHosts = generateRedisHosts(numMasterHosts);
 
-    var shardedClient = new ShardedRedis(redisHosts, options);
+    const shardedClient = new ShardedRedis(redisHosts, options);
+
     expect(MockRedisClient.createClient).toHaveBeenCalledTimes(1);
     expect(MockRedisClient.createClient).toHaveBeenCalledWith(redisHosts[0].port_range[0], redisHosts[0].host, options.redisOptions);
   });
 
-  it('should create master and slave clients', function () {
+  it('should create master and slave clients', () => {
+    const numMasterHosts = 1;
+    const numPorts = 1;
+    const numSlaves = 3;
+    const redisHosts = global.generateRedisHosts(numMasterHosts, numPorts, numSlaves);
+
     spyOn(MockRedisClient, 'createClient').and.callThrough();
 
-    var numMasterHosts = 1;
-    var numPorts = 1;
-    var numSlaves = 3;
-    var redisHosts = generateRedisHosts(numMasterHosts, numPorts, numSlaves);
-    var shardedClient = new ShardedRedis(redisHosts);
+    const shardedClient = new ShardedRedis(redisHosts);
 
     expect(MockRedisClient.createClient).toHaveBeenCalledTimes(numSlaves + 1);
     expect(MockRedisClient.createClient).toHaveBeenCalledWith(redisHosts[0].port_range[0], redisHosts[0].host, undefined);
-    for (var i = 0; i < numSlaves; i++) {
+
+    for (let i = 0; i < numSlaves; ++i)
       expect(MockRedisClient.createClient).toHaveBeenCalledWith(redisHosts[0].port_range[0], redisHosts[0].slaveHosts[i], undefined);
-    }
   });
 
-  it('should create multiple master clients', function () {
+  it('should create multiple master clients', () => {
+    const numMasterHosts = 3;
+    const numPorts = 5;
+    const redisHosts = global.generateRedisHosts(numMasterHosts, numPorts);
+
     spyOn(MockRedisClient, 'createClient').and.callThrough();
 
-    var numMasterHosts = 3;
-    var numPorts = 5;
-    var redisHosts = generateRedisHosts(numMasterHosts, numPorts);
-    var shardedClient = new ShardedRedis(redisHosts);
+    const shardedClient = new ShardedRedis(redisHosts);
 
     expect(MockRedisClient.createClient).toHaveBeenCalledTimes(numMasterHosts * numPorts);
-    for (var i = 0; i < numMasterHosts; i++) {
-      for (var j = 0; j < numPorts; j++) {
+
+    for (let i = 0; i < numMasterHosts; ++i)
+      for (let j = 0; j < numPorts; ++j)
         expect(MockRedisClient.createClient).toHaveBeenCalledWith(redisHosts[i].port_range[0] + j, redisHosts[i].host, undefined);
-      }
-    }
   });
 
-  it('should call the corresponding redis command on the redis client', function (done) {
-    shardable.forEach(function (cmd) {
+  it('should call the corresponding redis command on the redis client', (done) => {
+    const numMasterHosts = 1;
+    const shardedClient = new ShardedRedis(global.generateRedisHosts(numMasterHosts));
+
+    async.each(SHARDABLE, (cmd, cb) => {
       spyOn(MockRedisClient.prototype, cmd).and.callThrough();
-    });
 
-    var numMasterHosts = 1;
-    var shardedClient = new ShardedRedis(generateRedisHosts(numMasterHosts));
-
-    async.each(shardable, function (cmd, cb) {
-      shardedClient[cmd]('key', function () {
+      shardedClient[cmd]('key', () => {
         expect(MockRedisClient.prototype[cmd]).toHaveBeenCalledTimes(1);
         cb();
       });
     }, done);
   });
 
-  it('should go to the same wrapped client when multiple requests are made with the same key', function (done) {
-    var numMasterHosts = 3;
-    var numPorts = 5;
-    var callTimes = 5;
-    var redisHosts = [];
-    var key = 'key';
+  it('should go to the same wrapped client when multiple requests are made with the same key', (done) => {
+    const numMasterHosts = 3;
+    const numPorts = 5;
+    const callTimes = 5;
+    const redisHosts = [];
+    const key = 'key';
+    const shardedClient = new ShardedRedis(global.generateRedisHosts(numMasterHosts, numPorts));
+    const mockedRedisClient = shardedClient._getWrappedClient(key).get();
 
-    var shardedClient = new ShardedRedis(generateRedisHosts(numMasterHosts, numPorts));
-    var mockedRedisClient = shardedClient._getWrappedClient(key).get();
     spyOn(mockedRedisClient, 'get').and.callThrough();
 
-    async.times(callTimes, function (n, cb) {
-      shardedClient.get(key, cb);
-    },
-
-      function () {
+    async.times(callTimes, (n, cb) => shardedClient.get(key, cb), () => {
       expect(mockedRedisClient.get).toHaveBeenCalledTimes(callTimes);
       done();
     });
   });
 
-  it('should go to the same wrapped client if shard key is same as key', function (done) {
-    var numMasterHosts = 3;
-    var numPorts = 5;
-    var callTimes = 5;
-    var redisHosts = [];
-    var key = 'key';
-    var badKey = 'badKey';
+  it('should go to the same wrapped client if shard key is same as key', (done) => {
+    const numMasterHosts = 3;
+    const numPorts = 5;
+    const callTimes = 5;
+    const redisHosts = [];
+    const shardKey = 'key';
+    const badKey = 'badKey';
+    const shardedClient = new ShardedRedis(global.generateRedisHosts(numMasterHosts, numPorts));
+    const mockedRedisClient = shardedClient._getWrappedClient(shardKey).get();
+    const mockedBadClient = shardedClient._getWrappedClient(badKey).get();
 
-    var shardedClient = new ShardedRedis(generateRedisHosts(numMasterHosts, numPorts));
-    var mockedRedisClient = shardedClient._getWrappedClient(key).get();
-    var mockedBadClient = shardedClient._getWrappedClient(badKey).get();
     spyOn(mockedRedisClient, 'get').and.callThrough();
     spyOn(mockedBadClient, 'get').and.callThrough();
 
-    async.times(callTimes, function (n, cb) {
-        async.series([
-          (callback) => shardedClient.get(key, callback),
-          (callback) => shardedClient.getWithOptions( {shardKey: key}, badKey, callback)
-        ],
-        function (err, results) {
-          return cb();
-        });
-      },
-
-      function () {
-        expect(mockedRedisClient.get).toHaveBeenCalledTimes(callTimes * 2);
-        done();
-      });
+    async.times(callTimes, (n, cb) => {
+      async.series([
+        (callback) => shardedClient.get(shardKey, callback),
+        (callback) => shardedClient.getWithOptions({ shardKey }, badKey, callback)
+      ], cb);
+    }, () => {
+      expect(mockedRedisClient.get).toHaveBeenCalledTimes(callTimes * 2);
+      done();
+    });
   });
 
-  it('should not always go to the same redis client', function (done) {
-    var numMasterHosts = 3;
-    var numPorts = 3;
-    var numKeys = 100;
-    var currKeyNum = 0;
+  it('should not always go to the same redis client', (done) => {
+    const numMasterHosts = 3;
+    const numPorts = 3;
+    const numKeys = 100;
+    const shardedClient = new ShardedRedis(global.generateRedisHosts(numMasterHosts, numPorts));
+    const wrappedClients = shardedClient._wrappedClients;
+    let currKeyNum = 0;
 
-    var shardedClient = new ShardedRedis(generateRedisHosts(numMasterHosts, numPorts));
-
-    var wrappedClients = shardedClient._wrappedClients;
-    for (var i = 0; i < numMasterHosts * numPorts; i++) {
+    for (let i = 0; i < numMasterHosts * numPorts; ++i)
       spyOn(wrappedClients[i].get(), 'get').and.callThrough();
-    }
 
-    async.times(numKeys, function (n, cb) {
-        var key = 'key' + currKeyNum++;
-        shardedClient.get(key, cb);
-      },
+    async.times(numKeys, (n, cb) => shardedClient.get('key' + currKeyNum++, cb), () => {
+      let sumCalls = 0;
 
-      function () {
-        var sumCalls = 0;
-        for (i = 0; i < numMasterHosts * numPorts; i++) {
-          sumCalls += wrappedClients[i].get().get.calls.count();
-          expect(wrappedClients[i].get().get.calls.count()).toBeLessThan(numKeys);
-        }
+      for (let i = 0; i < numMasterHosts * numPorts; i++) {
+        sumCalls += wrappedClients[i].get().get.calls.count();
+        expect(wrappedClients[i].get().get.calls.count()).toBeLessThan(numKeys);
+      }
 
-        expect(sumCalls).toBe(numKeys);
-        done();
-      });
+      expect(sumCalls).toBe(numKeys);
+
+      done();
+    });
   });
 
-  it('should try to read from slaves first when readPreference is "slave"', function (done) {
-    var key = 'key';
-    var numMasterHosts = 1;
-    var numPorts = 1;
-    var numSlaveHosts = 5;
-    var totalCalls = 0;
-    var masterCallNumber;
-    var shardedClient = new ShardedRedis(generateRedisHosts(numMasterHosts, numPorts, numSlaveHosts));
+  it('should try to read from slaves first when readPreference is "slave"', (done) => {
+    const key = 'key';
+    const numMasterHosts = 1;
+    const numPorts = 1;
+    const numSlaveHosts = 5;
+    const shardedClient = new ShardedRedis(generateRedisHosts(numMasterHosts, numPorts, numSlaveHosts));
+    const wrappedClient = shardedClient._getWrappedClient(key);
+    const masterClient = wrappedClient.get();
+    const slaveClients = [];
+    let totalCalls = 0;
+    let masterCallNumber = 0;
 
-    var wrappedClient = shardedClient._getWrappedClient(key);
-    var masterClient = wrappedClient.get();
+    for (let i = 0; i < numSlaveHosts; ++i) {
+      const sc = wrappedClient.getSlave();
 
-    var slaveClients = [];
-    for (var i = 0; i < numSlaveHosts; i++) {
-      var sc = wrappedClient.getSlave();
       slaveClients.push(sc);
-      spyOn(sc, 'get').and.callFake(function (key, cb) {
-        totalCalls++;
-        cb(new Error('an error'));
-      });
+
+      spyOn(sc, 'get').and.callFake((key, cb) => ++totalCalls && cb(new Error('an error')));
     }
 
-    spyOn(masterClient, 'get').and.callFake(function (key, cb) {
-      totalCalls++;
+    spyOn(masterClient, 'get').and.callFake((key, cb) => {
+      ++totalCalls;
       masterCallNumber = totalCalls;
       cb();
     });
 
-    shardedClient.get(key, function () {
-      slaveClients.forEach(function (sc) {
+    shardedClient.get(key, () => {
+      slaveClients.forEach((sc) => {
         expect(sc.get).toHaveBeenCalledTimes(1);
         expect(sc.get.calls.argsFor(0).slice(0, -1)).toEqual([key]);
       });
@@ -263,61 +192,34 @@ describe('Sharded Client tests', function () {
     });
   });
 
-  it('should only make write calls to master, even if readPreference is "slave"', function (done) {
-    var key = 'key';
-    var value = 'value';
-    var numMasterHosts = 1;
-    var numPorts = 1;
-    var numSlaveHosts = 5;
-    var shardedClient = new ShardedRedis(generateRedisHosts(numMasterHosts, numPorts, numSlaveHosts));
+  it('should only make write calls to master, even if readPreference is "slave"', (done) => {
+    const key = 'key';
+    const value = 'value';
+    const numMasterHosts = 1;
+    const numPorts = 1;
+    const numSlaveHosts = 5;
+    const shardedClient = new ShardedRedis(generateRedisHosts(numMasterHosts, numPorts, numSlaveHosts));
+    const wrappedClient = shardedClient._getWrappedClient(key);
+    const masterClient = wrappedClient.get();
+    const slaveClients = [];
 
-    var wrappedClient = shardedClient._getWrappedClient(key);
-    var masterClient = wrappedClient.get();
+    for (let i = 0; i < numSlaveHosts; ++i) {
+      const sc = wrappedClient.getSlave();
 
-    var slaveClients = [];
-    for (var i = 0; i < numSlaveHosts; i++) {
-      var sc = wrappedClient.getSlave();
       slaveClients.push(sc);
       spyOn(sc, 'set').and.callThrough();
     }
 
     spyOn(masterClient, 'set').and.callThrough();
 
-    shardedClient.set(key, value, function () {
-      slaveClients.forEach(function (sc) {
-        expect(sc.set).not.toHaveBeenCalled();
-      });
+    shardedClient.set(key, value, () => {
+      slaveClients.forEach((sc) => expect(sc.set).not.toHaveBeenCalled());
 
       expect(masterClient.set).toHaveBeenCalledTimes(1);
       expect(masterClient.set.calls.argsFor(0).slice(0, -1)).toEqual([key, value]);
+
       done();
     });
   });
+
 });
-
-function generateRedisHosts(numMasters, numPorts, numSlaves) {
-  var hosts = [];
-  var counter = 0;
-  for (var m = 0; m < numMasters; m++) {
-    var masterConfig = generateRedisConfig(numPorts);
-    for (var s = 0; s < numSlaves; s++) {
-      if (!masterConfig.slaveHosts) masterConfig.slaveHosts = [];
-      masterConfig.slaveHosts.push(generateRedisConfig().host);
-      masterConfig.readPreference = 'slave';
-    }
-
-    hosts.push(masterConfig);
-  }
-
-  return hosts;
-
-  function generateRedisConfig(numPorts) {
-    var portRange = [6379];
-    if (numPorts > 1) portRange.push(6379 + numPorts - 1);
-
-    return {
-      host: 'http://hostname' + counter++,
-      port_range: portRange
-    };
-  }
-}
