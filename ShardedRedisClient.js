@@ -280,28 +280,27 @@ SHARDABLE.forEach((cmd) => {
 
     mainCb = _.once(mainCb);
 
-    // const isReadCmd = READ_ONLY.indexOf(cmd) !== -1;
-    // const timeout = isReadCmd ? this._readTimeout : this._writeTimeout;
-
     const _this = this;
     let breaker = client._breaker;
 
     execute();
 
     function execute() {
-      breaker.exec(cmd, args).then(result => mainCb(null, result)).catch((err) => {
-        if(!client._isMaster) {
-          client = wrappedClient.slaves.next(client);
+      breaker.exec(cmd, args)
+        .then(result => mainCb(null, result))
+        .catch((err) => {
+          if(!client._isMaster) {
+            client = wrappedClient.slaves.next(client);
 
-          if (client._rrindex == startIndex)
-            client = findMasterClient(shardKey, _this._wrappedClients);
+            if (client._rrindex == startIndex)
+              client = findMasterClient(shardKey, _this._wrappedClients);
 
-          breaker = client._breaker;
-          execute();
-        }
+            breaker = client._breaker;
+            return execute();
+          }
 
-        mainCb(err);
-      });
+          mainCb(err);
+        });
     }
   };
 
