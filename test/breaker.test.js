@@ -30,48 +30,42 @@ describe('Test breakers', () => {
     const redisHosts = global.generateRedisHosts(numMasterHosts);
     const options = {
       breakerConfig: {
-        failure_rate: 0.5,
-        failure_count: 10,
-        reset_timeout: 30000
+        threshold: 0.5,
+        circuitDuration: 15000,
+        timeout: 5000
       }
     };
 
     const shardedClient = new ShardedRedis(redisHosts, options);
-    const mockedClient = shardedClient._getWrappedClient(key).get();
 
-    spyOn(mockedClient._breaker, 'pass').and.callThrough();
     spyOn(MockRedisClient.prototype, 'get').and.callThrough();
 
     shardedClient.get(key, (err) => {
-      expect(err).toBeUndefined();
+      expect(err).toBe(null);
       expect(MockRedisClient.prototype.get).toHaveBeenCalledTimes(1);
-      expect(mockedClient._breaker.pass).toHaveBeenCalledTimes(1);
       done();
     });
   });
 
-  it('should tell the breaker about a failed redis command', function (done) {
+  it('should receive error when redis command fails', function (done) {
     const key = 'key';
     const numMasterHosts = 1;
     const redisHosts = global.generateRedisHosts(numMasterHosts);
     const options = {
       breakerConfig: {
-        failure_rate: 0.5,
-        failure_count: 10,
-        reset_timeout: 30000
+        threshold: 0.5,
+        circuitDuration: 15000,
+        timeout: 5000
       }
     };
 
     const shardedClient = new ShardedRedis(redisHosts, options);
-    const mockedClient = shardedClient._getWrappedClient(key).get();
 
-    spyOn(mockedClient._breaker, 'fail').and.callThrough();
     spyOn(MockRedisClient.prototype, 'get').and.callFake((key, cb) => cb(new Error('an error from the redis client')));
 
     shardedClient.get(key, (err) => {
       expect(err instanceof Error).toBeTrue();
       expect(MockRedisClient.prototype.get).toHaveBeenCalledTimes(1);
-      expect(mockedClient._breaker.fail).toHaveBeenCalledTimes(1);
       done();
     });
   });
@@ -82,19 +76,20 @@ describe('Test breakers', () => {
     const redisHosts = global.generateRedisHosts(numMasterHosts);
     const options = {
       breakerConfig: {
-        failure_count: -1
+        threshold: 0.5,
+        circuitDuration: 15000,
+        timeout: 5000
       }
     };
 
     const shardedClient = new ShardedRedis(redisHosts, options);
     const mockedClient = shardedClient._getWrappedClient(key).get();
 
-    mockedClient._breaker.trip();
+    mockedClient._breaker._open();
     spyOn(MockRedisClient.prototype, 'get').and.callThrough();
 
     shardedClient.get(key, (err) => {
       expect(err instanceof Error).toBeTrue();
-      expect(err.message).toBe('breaker open');
       expect(MockRedisClient.prototype.get).not.toHaveBeenCalled();
       done();
     });

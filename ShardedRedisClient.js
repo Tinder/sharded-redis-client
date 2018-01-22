@@ -302,7 +302,7 @@ SHARDABLE.forEach((cmd) => {
             return execute();
           }
 
-          mainCb(err);
+          return mainCb(err);
         });
     }
   };
