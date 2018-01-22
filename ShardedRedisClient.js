@@ -289,6 +289,9 @@ SHARDABLE.forEach((cmd) => {
       breaker.exec(cmd, args)
         .then(result => mainCb(null, result))
         .catch((err) => {
+          _this.emit('err', new Error(`sharded-redis-client [${client.address}] err: ${err}`));
+          console.error(new Date().toISOString(), `sharded-redis-client [${client.address }] err: ${err}`);
+
           if(!client._isMaster) {
             client = wrappedClient.slaves.next(client);
 
