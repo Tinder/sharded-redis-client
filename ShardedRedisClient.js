@@ -254,7 +254,7 @@ class ShardedRedisClient extends EventEmitter {
     });
   }
 
-};
+}
 
 SHARDABLE.forEach((cmd) => {
 
@@ -280,59 +280,30 @@ SHARDABLE.forEach((cmd) => {
 
     mainCb = _.once(mainCb);
 
-    const isReadCmd = READ_ONLY.indexOf(cmd) !== -1;
-    const timeout = isReadCmd ? this._readTimeout : this._writeTimeout;
+    // const isReadCmd = READ_ONLY.indexOf(cmd) !== -1;
+    // const timeout = isReadCmd ? this._readTimeout : this._writeTimeout;
 
     const _this = this;
-    let timeoutHandler = null;
     let breaker = client._breaker;
 
-    const timeoutCb = args[args.length - 1] = function (err) {
-      if (timeoutHandler)
-        clearTimeout(timeoutHandler);
+    execute();
 
-      if (!err) {
-        if (breaker)
-          breaker.pass();
+    function execute() {
+      breaker.exec(cmd, args).then(result => mainCb(null, result)).catch((err) => {
+        if(!client._isMaster) {
+          client = wrappedClient.slaves.next(client);
 
-        return mainCb.apply(this, arguments);
-      }
+          if (client._rrindex == startIndex)
+            client = findMasterClient(shardKey, _this._wrappedClients);
 
-      // For now, both emit and log. Eventually, logging will be removed
-      _this.emit('err', new Error(`sharded-redis-client [${client.address}] err: ${err}`));
-      console.error(new Date().toISOString(), `sharded-redis-client [${client.address }] err: ${err}`);
+          breaker = client._breaker;
+          execute();
+        }
 
-      if (breaker && err.message !== 'breaker open')
-        breaker.fail();
-
-      if (!client._isMaster) {
-        client = wrappedClient.slaves.next(client);
-
-        if (client._rrindex == startIndex)
-          client = findMasterClient(shardKey, _this._wrappedClients);
-
-        breaker = client._breaker;
-
-        return wrappedCmd(client, args);
-      }
-
-      mainCb.apply(this, arguments);
-    };
-
-    wrappedCmd(client, args);
-
-    function wrappedCmd(client, args) {
-      if (!breaker || breaker.closed()) {
-        // Intentionally don't do this if timeout was set to 0
-        if (timeout)
-          timeoutHandler = setTimeout(timeoutCb, timeout, new Error('Redis call timed out'));
-
-        return client[cmd].apply(client, args);
-      }
-
-      timeoutCb(new Error('breaker open'));
+        mainCb(err);
+      });
     }
-  }
+  };
 
   ShardedRedisClient.prototype[cmd] = function () {
     const args = arguments;

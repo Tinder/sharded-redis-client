@@ -21,6 +21,8 @@
   "homepage": "https://github.com/Tinder/sharded-redis-client",
   "dependencies": {
     "async": "2.6.0",
+    "bluebird": "3.5.1",
+    "brakes": "2.6.0",
     "circuit-breaker": "git://github.com/Tinder/circuit-breaker",
     "hiredis": "0.5.0",
     "lodash": "4.17.4",
