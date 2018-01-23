@@ -25,13 +25,14 @@ describe('Test timeouts', function () {
   const WrappedClient = proxyquire('../lib/WrappedClient', { redis: MockRedisClient });
   const ShardedRedis = proxyquire('../ShardedRedisClient', { './lib/WrappedClient': WrappedClient });
 
-  beforeAll(() => jasmine.clock().install());
-  afterAll(() => jasmine.clock().uninstall());
-
   it('should cb with an error on a read if redis is not responding if read timeouts enabled', function (done) {
     const key = 'key';
     const numMasterHosts = 1;
-    const options = { readTimeout: 500 };
+    const options = {
+      breakerConfig: {
+        timeout: 500
+      }
+    };
     const redisHosts = global.generateRedisHosts(numMasterHosts);
     const shardedClient = new ShardedRedis(redisHosts, options);
 
@@ -40,18 +41,20 @@ describe('Test timeouts', function () {
     shardedClient.get(key, (err) => {
       expect(err instanceof Error).toBeTrue();
       expect(MockRedisClient.prototype.get).toHaveBeenCalledTimes(1);
-      expect(err.message).toBe('Redis call timed out');
+      expect(err.message).toBe('[Breaker: defaultBrake] Request Timed out');
       done();
     });
-
-    jasmine.clock().tick(500);
   });
 
   it('should cb with an error on a write if redis is not responding if write timeouts enabled', function (done) {
     const key = 'key';
     const value = 'value';
     const numMasterHosts = 1;
-    const options = { writeTimeout: 1000 };
+    const options = {
+        breakerConfig: {
+        timeout: 1000
+      }
+    };
     const redisHosts = global.generateRedisHosts(numMasterHosts);
     const shardedClient = new ShardedRedis(redisHosts, options);
 
@@ -60,17 +63,19 @@ describe('Test timeouts', function () {
     shardedClient.set(key, value, (err) => {
       expect(err instanceof Error).toBeTrue();
       expect(MockRedisClient.prototype.set).toHaveBeenCalledTimes(1);
-      expect(err.message).toBe('Redis call timed out');
+      expect(err.message).toBe('[Breaker: defaultBrake] Request Timed out');
       done();
     });
-
-    jasmine.clock().tick(1000);
   });
 
   it('should only call the cb once if a timeout is not triggered', function (done) {
     const key = 'key';
     const numMasterHosts = 1;
-    const options = { readTimeout: 500 };
+    const options = {
+      breakerConfig: {
+        timeout: 500
+      }
+    };
     const redisHosts = global.generateRedisHosts(numMasterHosts);
     const shardedClient = new ShardedRedis(redisHosts, options);
     const mainCbSpy = jasmine.createSpy('mainCb').and.callFake((err) => expect(MockRedisClient.prototype.get).toHaveBeenCalledTimes(1));
@@ -79,8 +84,6 @@ describe('Test timeouts', function () {
 
     shardedClient.get(key, mainCbSpy);
     setTimeout(() => expect(mainCbSpy).toHaveBeenCalledTimes(1) || done(), 600);
-
-    jasmine.clock().tick(600);
   });
 
   it('should move on to the next client if redis client times out on reads', function (done) {
@@ -88,7 +91,11 @@ describe('Test timeouts', function () {
     const numPorts = 1;
     const numSlaves = 2;
     const numMasterHosts = 1;
-    const options = { readTimeout: 500 };
+    const options = {
+      breakerConfig: {
+        timeout: 100
+      }
+    };
     const redisHosts = global.generateRedisHosts(numMasterHosts, numPorts, numSlaves);
     const shardedClient = new ShardedRedis(redisHosts, options);
     const wrappedClient = shardedClient._getWrappedClient(key);
@@ -101,13 +108,11 @@ describe('Test timeouts', function () {
     spyOn(slaveClient2, 'get');
 
     shardedClient.get(key, (err) => {
-      expect(err).toBeUndefined();
+      expect(err).toBe(null);
       expect(slaveClient1.get).toHaveBeenCalledTimes(1);
       expect(slaveClient2.get).toHaveBeenCalledTimes(1);
       expect(masterClient.get).toHaveBeenCalledTimes(1);
       done();
     });
-
-    jasmine.clock().tick(1000);
   });
 });

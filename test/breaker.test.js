@@ -84,7 +84,8 @@ describe('Test breakers', () => {
 
     const shardedClient = new ShardedRedis(redisHosts, options);
     const mockedClient = shardedClient._getWrappedClient(key).get();
-
+    
+    // manually open it first
     mockedClient._breaker._open();
     spyOn(MockRedisClient.prototype, 'get').and.callThrough();
 

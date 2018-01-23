@@ -295,8 +295,9 @@ SHARDABLE.forEach((cmd) => {
           if(!client._isMaster) {
             client = wrappedClient.slaves.next(client);
 
-            if (client._rrindex == startIndex)
+            if (client._rrindex == startIndex) {
               client = findMasterClient(shardKey, _this._wrappedClients);
+            }
 
             breaker = client._breaker;
             return execute();
