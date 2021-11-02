@@ -1,6 +1,6 @@
 {
   "name": "sharded-redis-client",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "description": "A client for application side sharding of redis",
   "main": "ShardedRedisClient.js",
   "engines": {
@@ -21,7 +21,7 @@
   "homepage": "https://github.com/Tinder/sharded-redis-client",
   "dependencies": {
     "async": "2.6.0",
-    "circuit-breaker": "git://github.com/Tinder/circuit-breaker",
+    "circuit-breaker": "git+ssh://git@github.com/Tinder/circuit-breaker",
     "lodash": "4.17.4",
     "redis": "2.8.0"
   },
