@@ -22,7 +22,7 @@
   "dependencies": {
     "async": "2.6.0",
     "circuit-breaker": "git+ssh://git@github.com/Tinder/circuit-breaker",
-    "lodash": "4.17.4",
+    "lodash": "4.17.21",
     "redis": "2.8.0"
   },
   "devDependencies": {
